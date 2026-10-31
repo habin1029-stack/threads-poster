@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { GoogleGenAI } from "@google/genai";
 
 // 정확한 Flash 모델명으로 설정
-const GEMINI_MODEL = "gemini-1.5-flash";
+const GEMINI_MODEL = "gemini-2.0-flash";
 
 export async function POST(req: NextRequest) {
   try {
