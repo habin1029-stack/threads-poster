@@ -1,15 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { GoogleGenAI } from "@google/genai";
 
-// 모델 이름을 한 곳에서 관리
-const GEMINI_MODEL = "gemini-3.8-flash";
+// 정확한 Flash 모델명으로 설정
+const GEMINI_MODEL = "gemini-1.5-flash";
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const { keyword, region, store, style, length, count } = body;
 
-    const apiKey = process.env.GOOGLE_API_KEY;
+    // Vercel에 등록한 환경변수 이름과 정확히 일치해야 함
+    const apiKey = process.env.GEMINI_API_KEY; 
     if (!apiKey) {
       return NextResponse.json({ error: "API 키가 없습니다." }, { status: 500 });
     }
