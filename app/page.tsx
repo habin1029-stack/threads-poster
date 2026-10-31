@@ -16,10 +16,30 @@ import { ThreadsPostButton } from "@/components/threads/ThreadsPostButton";
 import { PostHistory } from "@/components/threads/PostHistory";
 import { toast } from "sonner";
 
+// 실시간 타자(Typewriter) 효과를 위한 컴포넌트
+function TypewriterText({ text }: { text: string }) {
+  const [displayedText, setDisplayedText] = useState("");
+
+  useEffect(() => {
+    let i = 0;
+    setDisplayedText(""); // 텍스트 초기화
+    const timer = setInterval(() => {
+      setDisplayedText(text.slice(0, i + 1));
+      i++;
+      if (i >= text.length) {
+        clearInterval(timer);
+      }
+    }, 30); // 타자 속도 조절
+
+    return () => clearInterval(timer);
+  }, [text]);
+
+  return <p className="whitespace-pre-wrap text-threads-text">{displayedText}</p>;
+}
+
 export default function HomePage() {
   const [keyword, setKeyword] = useState("");
   const [region, setRegion] = useState("강변");
-  const [store, setStore] = useState("");
   const [style, setStyle] = useState<"일상 대화형" | "가볍게 추천형" | "친구에게 알려주는 말투">(
     "일상 대화형"
   );
@@ -31,15 +51,6 @@ export default function HomePage() {
   const [threadsUsername, setThreadsUsername] = useState<string | undefined>(undefined);
   const [postHistory, setPostHistory] = useState<any[]>([]);
   const [selectedPostIndex, setSelectedPostIndex] = useState<number | null>(null);
-
-  const styles: Record<
-    "일상 대화형" | "가볍게 추천형" | "친구에게 알려주는 말투",
-    string
-  > = {
-    "일상 대화형": "일상적인 대화와 정보 공유 형식",
-    "가볍게 추천형": "가볍고 재치 있는 추천 형식",
-    "친구에게 알려주는 말투": "친구나 지인에게 알려주는 듯한 말투",
-  };
 
   const lengths: Record<string, number> = {
     "짧게 (100자 이내)": 100,
@@ -65,7 +76,6 @@ export default function HomePage() {
         body: JSON.stringify({
           keyword: keyword.trim(),
           region: region.trim(),
-          store: store.trim(),
           style: style,
           length: lengths[length],
           count: count,
@@ -192,7 +202,7 @@ export default function HomePage() {
       <div className="max-w-2xl mx-auto">
         <header className="mb-6 text-center">
           <h1 className="text-2xl md:text-3xl font-bold mb-2">
-            Threads 홍보 게시글 생성기
+            스레드 아이디 로그인
           </h1>
           <p className="text-threads-muted text-sm">
             자연스러운 일상 대화 형식의 휴대폰 홍보 게시글을 생성합니다.
@@ -240,30 +250,18 @@ export default function HomePage() {
 
             <div>
               <label className="block text-threads-muted text-sm mb-1">
-                매장명 (선택)
+                스타일
               </label>
-              <Input
-                placeholder="예: 휴대폰 특가샵"
-                value={store}
-                onValueChange={setStore}
+              <Select
+                value={style}
+                onValueChange={(val) => setStyle(val as any)}
                 disabled={loading}
-              />
+              >
+                <SelectItem value="일상 대화형">일상 대화형</SelectItem>
+                <SelectItem value="가볍게 추천형">가볍게 추천형</SelectItem>
+                <SelectItem value="친구에게 알려주는 말투">친구에게 알려주는 말투</SelectItem>
+              </Select>
             </div>
-          </div>
-
-          <div className="mb-4">
-            <label className="block text-threads-muted text-sm mb-1">
-              스타일
-            </label>
-            <Select
-              value={style}
-              onValueChange={(val) => setStyle(val as any)}
-              disabled={loading}
-            >
-              <SelectItem value="일상 대화형">일상 대화형</SelectItem>
-              <SelectItem value="가볍게 추천형">가볍게 추천형</SelectItem>
-              <SelectItem value="친구에게 알려주는 말투">친구에게 알려주는 말투</SelectItem>
-            </Select>
           </div>
 
           <div className="grid grid-cols-2 gap-4 mb-4">
@@ -315,7 +313,7 @@ export default function HomePage() {
             <div className="space-y-4">
               {generatedPosts.map((post, index) => (
                 <div key={index} className="p-4 rounded border border-threads-border bg-threads-surface">
-                  <p className="whitespace-pre-wrap text-threads-text">{post}</p>
+                  <TypewriterText text={post} />
                   <div className="mt-3 flex gap-2">
                     <Button
                       size="sm"
