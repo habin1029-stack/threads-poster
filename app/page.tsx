@@ -177,7 +177,7 @@ export default function HomePage() {
       <div className="max-w-2xl mx-auto">
         <header className="mb-6 text-center">
           <h1 className="text-2xl md:text-3xl font-bold mb-2">
-            스레드 아이디 로그인
+            스레드 생성기
           </h1>
           <p className="text-threads-muted text-sm">
             자연스러운 일상 대화 형식의 휴대폰 홍보 게시글을 생성합니다.
