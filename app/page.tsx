@@ -16,20 +16,20 @@ import { ThreadsPostButton } from "@/components/threads/ThreadsPostButton";
 import { PostHistory } from "@/components/threads/PostHistory";
 import { toast } from "sonner";
 
-// 실시간 타자(Typewriter) 효과를 위한 컴포넌트
+// 실시간 타자(Typewriter) 효과 컴포넌트
 function TypewriterText({ text }: { text: string }) {
   const [displayedText, setDisplayedText] = useState("");
 
   useEffect(() => {
     let i = 0;
-    setDisplayedText(""); // 텍스트 초기화
+    setDisplayedText("");
     const timer = setInterval(() => {
       setDisplayedText(text.slice(0, i + 1));
       i++;
       if (i >= text.length) {
         clearInterval(timer);
       }
-    }, 30); // 타자 속도 조절
+    }, 30);
 
     return () => clearInterval(timer);
   }, [text]);
@@ -65,7 +65,7 @@ export default function HomePage() {
     }
 
     setLoading(true);
-    setGeneratedPosts([]);
+    setGeneratedPosts([]); // 기존 글씨 지우기 및 로딩 시작
 
     try {
       const response = await fetch("/api/generate", {
@@ -93,80 +93,7 @@ export default function HomePage() {
       console.error("Error:", error);
       alert(error.message || "게시글 생성 중 오류가 발생했습니다.");
     } finally {
-      setLoading(false);
-    }
-  };
-
-  const handlePostSelection = (index: number) => {
-    setSelectedPostIndex(index);
-  };
-
-  const handleThreadsLogin = () => {
-    console.log("Starting Threads OAuth login...");
-    window.location.href = "/api/auth/threads";
-  };
-
-  const handleThreadsLogout = () => {
-    setThreadsConnected(false);
-    setThreadsUsername(undefined);
-    toast.success("Threads 계정 연결이 해제되었습니다.");
-    console.log("Threads logout initiated.");
-  };
-
-  const handlePostToThreads = async (content: string) => {
-    console.log('[UI] handlePostToThreads: Starting post process for content:', content);
-    if (!threadsConnected) {
-      toast.error("Threads 계정에 연결되어 있지 않습니다. 먼저 계정을 연결해주세요.");
-      console.error('[UI] User not connected to Threads');
-      return;
-    }
-
-    try {
-      console.log('[UI] handlePostToThreads: Attempting to post to Threads with content:', content);
-      setLoading(true);
-      const response = await fetch("/api/threads/publish", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ content }),
-      });
-
-      const responseData = await response.json();
-      console.log('[UI] handlePostToThreads: API Response:', responseData);
-
-      if (!response.ok) {
-        const errorMessage = responseData.error || "Threads 게시 실패";
-        console.error('[UI] handlePostToThreads: API Error:', errorMessage);
-        throw new Error(errorMessage);
-      }
-
-      setPostHistory([
-        ...postHistory,
-        {
-          id: responseData.postId,
-          content,
-          date: new Date().toLocaleString(),
-          status: "success",
-          permalink: responseData.permalink,
-        },
-      ]);
-      toast.success(`게시물 "${content.substring(0, 20)}..."이 성공적으로 Threads에 게시되었습니다.`);
-    } catch (error: any) {
-      console.error('[UI] handlePostToThreads: Error posting to Threads:', error);
-      setPostHistory([
-        ...postHistory,
-        {
-          id: Date.now().toString(),
-          content,
-          date: new Date().toLocaleString(),
-          status: "failed",
-          error: error.message,
-        },
-      ]);
-      toast.error(`게시 실패: ${error.message || "알 수 없는 오류가 발생했습니다."}`);
-    } finally {
-      setLoading(false);
+      setLoading(false); // 로딩 종료
     }
   };
 
@@ -179,8 +106,57 @@ export default function HomePage() {
     toast.success("게시물이 업데이트되었습니다.");
   };
 
+  const handleThreadsLogin = () => {
+    window.location.href = "/api/auth/threads";
+  };
+
+  const handleThreadsLogout = () => {
+    setThreadsConnected(false);
+    setThreadsUsername(undefined);
+    toast.success("Threads 계정 연결이 해제되었습니다.");
+  };
+
+  const handlePostToThreads = async (content: string) => {
+    if (!threadsConnected) {
+      toast.error("Threads 계정에 연결되어 있지 않습니다. 먼저 계정을 연결해주세요.");
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const response = await fetch("/api/threads/publish", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ content }),
+      });
+
+      const responseData = await response.json();
+
+      if (!response.ok) {
+        throw new Error(responseData.error || "Threads 게시 실패");
+      }
+
+      setPostHistory([
+        ...postHistory,
+        {
+          id: responseData.postId,
+          content,
+          date: new Date().toLocaleString(),
+          status: "success",
+          permalink: responseData.permalink,
+        },
+      ]);
+      toast.success(`게시물이 성공적으로 Threads에 게시되었습니다.`);
+    } catch (error: any) {
+      toast.error(`게시 실패: ${error.message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    // Threads 계정 연결 상태 확인
     const checkThreadsConnection = async () => {
       try {
         const response = await fetch("/api/auth/threads/status");
@@ -193,7 +169,6 @@ export default function HomePage() {
         console.error("Threads 연결 상태 확인 실패:", error);
       }
     };
-
     checkThreadsConnection();
   }, []);
 
@@ -202,7 +177,7 @@ export default function HomePage() {
       <div className="max-w-2xl mx-auto">
         <header className="mb-6 text-center">
           <h1 className="text-2xl md:text-3xl font-bold mb-2">
-            스레드 생성기
+            스레드 아이디 로그인
           </h1>
           <p className="text-threads-muted text-sm">
             자연스러운 일상 대화 형식의 휴대폰 홍보 게시글을 생성합니다.
@@ -233,30 +208,17 @@ export default function HomePage() {
 
           <div className="grid grid-cols-2 gap-4 mb-4">
             <div>
-              <label className="block text-threads-muted text-sm mb-1">
-                지역
-              </label>
-              <Select
-                value={region}
-                onValueChange={(val) => setRegion(val)}
-                disabled={loading}
-              >
+              <label className="block text-threads-muted text-sm mb-1">지역</label>
+              <Select value={region} onValueChange={setRegion} disabled={loading}>
                 <SelectItem value="강변">강변 테크노마트</SelectItem>
                 <SelectItem value="영등포">영등포 전자상가</SelectItem>
                 <SelectItem value="구로">구로 디지털단지</SelectItem>
                 <SelectItem value="명동">명동/시청</SelectItem>
               </Select>
             </div>
-
             <div>
-              <label className="block text-threads-muted text-sm mb-1">
-                스타일
-              </label>
-              <Select
-                value={style}
-                onValueChange={(val) => setStyle(val as any)}
-                disabled={loading}
-              >
+              <label className="block text-threads-muted text-sm mb-1">스타일</label>
+              <Select value={style} onValueChange={(val) => setStyle(val as any)} disabled={loading}>
                 <SelectItem value="일상 대화형">일상 대화형</SelectItem>
                 <SelectItem value="가볍게 추천형">가볍게 추천형</SelectItem>
                 <SelectItem value="친구에게 알려주는 말투">친구에게 알려주는 말투</SelectItem>
@@ -266,29 +228,16 @@ export default function HomePage() {
 
           <div className="grid grid-cols-2 gap-4 mb-4">
             <div>
-              <label className="block text-threads-muted text-sm mb-1">
-                게시글 개수
-              </label>
-              <Select
-                value={count.toString()}
-                onValueChange={(val) => setCount(parseInt(val))}
-                disabled={loading}
-              >
+              <label className="block text-threads-muted text-sm mb-1">게시글 개수</label>
+              <Select value={count.toString()} onValueChange={(val) => setCount(parseInt(val))} disabled={loading}>
                 <SelectItem value="3">3개</SelectItem>
                 <SelectItem value="5">5개</SelectItem>
                 <SelectItem value="10">10개</SelectItem>
               </Select>
             </div>
-
             <div>
-              <label className="block text-threads-muted text-sm mb-1">
-                글 길이
-              </label>
-              <Select
-                value={length}
-                onValueChange={(val) => setLength(val)}
-                disabled={loading}
-              >
+              <label className="block text-threads-muted text-sm mb-1">글 길이</label>
+              <Select value={length} onValueChange={setLength} disabled={loading}>
                 <SelectItem value="짧게 (100자 이내)">짧게 (100자 이내)</SelectItem>
                 <SelectItem value="보통 (200자 이내)">보통 (200자 이내)</SelectItem>
                 <SelectItem value="상세하게 (300자 이내)">상세하게 (300자 이내)</SelectItem>
@@ -301,13 +250,44 @@ export default function HomePage() {
             size="lg"
             disabled={loading}
             onClick={handleGenerate}
-            className="w-full"
+            className="w-full flex items-center justify-center gap-2"
           >
-            {loading ? "생성 중..." : "AI 게시글 생성"}
+            {loading ? (
+              <>
+                <svg className="animate-spin h-5 w-5 text-current" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <span>AI가 열심히 작성 중입니다... ✍️</span>
+              </>
+            ) : (
+              "AI 게시글 생성"
+            )}
           </Button>
         </Card>
 
-        {generatedPosts.length > 0 && (
+        {/* 로딩 중에 보여줄 깜빡이는 스켈레톤 UI */}
+        {loading && (
+          <Card className="p-6 mt-6">
+            <h3 className="font-semibold mb-4 text-threads-muted animate-pulse">스레드 감성으로 작성하고 있어요...</h3>
+            <div className="space-y-4">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="p-4 rounded border border-threads-border bg-threads-surface animate-pulse">
+                  <div className="h-4 bg-threads-border rounded w-3/4 mb-3 opacity-50"></div>
+                  <div className="h-4 bg-threads-border rounded w-full mb-3 opacity-50"></div>
+                  <div className="h-4 bg-threads-border rounded w-5/6 mb-4 opacity-50"></div>
+                  <div className="flex gap-2">
+                    <div className="h-8 w-16 bg-threads-border rounded opacity-50"></div>
+                    <div className="h-8 w-24 bg-threads-border rounded opacity-50"></div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </Card>
+        )}
+
+        {/* 로딩이 끝난 후 진짜 게시글 표시 */}
+        {!loading && generatedPosts.length > 0 && (
           <Card className="p-6 mt-6">
             <h3 className="font-semibold mb-4">생성된 게시글 ({generatedPosts.length}개)</h3>
             <div className="space-y-4">
@@ -352,13 +332,6 @@ export default function HomePage() {
             </div>
           </Card>
         )}
-
-        <div className="mt-8 p-4 rounded border border-threads-border text-threads-muted text-sm text-center">
-          <p>
-            "강변", "휴대폰 가격" 같은 키워드를 입력하면 자연스러운 게시글이
-            생성됩니다.
-          </p>
-        </div>
       </div>
     </main>
   );
