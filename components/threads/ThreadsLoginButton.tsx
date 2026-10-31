@@ -24,7 +24,7 @@ export function ThreadsLoginButton({
           </Button>
         </div>
       ) : (
-        <Button onClick={onLogin}>Connect Threads Account</Button>
+        <Button onClick={onLogin}>스레드로그인</Button>
       )}
     </div>
   );
