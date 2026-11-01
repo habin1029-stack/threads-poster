@@ -45,13 +45,16 @@ export default function HomePage() {
   );
   const [count, setCount] = useState(3);
   const [length, setLength] = useState("짧게 (100자 이내)");
-  const [loading, setLoading] = useState(false);
+  
+  // 🌟 핵심 수정: 생성 로딩과 업로드 로딩을 완벽하게 분리했습니다!
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [isPosting, setIsPosting] = useState(false);
+  
   const [generatedPosts, setGeneratedPosts] = useState<string[]>([]);
   const [threadsConnected, setThreadsConnected] = useState(false);
   const [threadsUsername, setThreadsUsername] = useState<string | undefined>(undefined);
   const [postHistory, setPostHistory] = useState<any[]>([]);
   
-  // 사진 첨부를 위한 상태 추가
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -62,7 +65,6 @@ export default function HomePage() {
     "상세하게 (300자 이내)": 300,
   };
 
-  // 사진 선택 시 미리보기 생성 함수
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -72,7 +74,6 @@ export default function HomePage() {
     }
   };
 
-  // 사진 지우기 함수
   const clearImage = () => {
     setSelectedImage(null);
     setImagePreview(null);
@@ -85,8 +86,8 @@ export default function HomePage() {
       return;
     }
 
-    setLoading(true);
-    setGeneratedPosts([]); // 기존 글씨 지우기 및 로딩 시작
+    setIsGenerating(true);
+    setGeneratedPosts([]);
 
     try {
       const response = await fetch("/api/generate", {
@@ -114,7 +115,7 @@ export default function HomePage() {
       console.error("Error:", error);
       alert(error.message || "게시글 생성 중 오류가 발생했습니다.");
     } finally {
-      setLoading(false); // 로딩 종료
+      setIsGenerating(false);
     }
   };
 
@@ -144,10 +145,9 @@ export default function HomePage() {
     }
 
     try {
-      setLoading(true);
+      setIsPosting(true); // 이제 업로드 중일 때는 화면이 깜빡이지 않습니다.
       let uploadedImageUrl = undefined;
 
-      // 1. 사진이 첨부되어 있다면 Vercel Blob에 먼저 업로드
       if (selectedImage) {
         toast.info("사진을 안전하게 업로드 중입니다...");
         const formData = new FormData();
@@ -165,7 +165,6 @@ export default function HomePage() {
         uploadedImageUrl = uploadData.url;
       }
 
-      // 2. 업로드된 사진 주소(있는 경우)와 텍스트를 스레드로 전송
       toast.info("스레드에 게시물을 등록하는 중입니다 (약 5초 소요)...");
       const response = await fetch("/api/threads/publish", {
         method: "POST",
@@ -195,7 +194,7 @@ export default function HomePage() {
     } catch (error: any) {
       toast.error(`게시 실패: ${error.message}`);
     } finally {
-      setLoading(false);
+      setIsPosting(false);
     }
   };
 
@@ -214,6 +213,9 @@ export default function HomePage() {
     };
     checkThreadsConnection();
   }, []);
+
+  // 화면의 버튼이나 입력칸은 '글 생성 중'이거나 '업로드 중'일 때 조작을 방지합니다.
+  const isBusy = isGenerating || isPosting;
 
   return (
     <main className="min-h-screen p-4 md:p-6 bg-threads-bg text-threads-text">
@@ -245,14 +247,14 @@ export default function HomePage() {
               placeholder="예: 휴대폰 성지, 가격, 강변 쪽"
               value={keyword}
               onValueChange={setKeyword}
-              disabled={loading}
+              disabled={isBusy}
             />
           </div>
 
           <div className="grid grid-cols-2 gap-4 mb-4">
             <div>
               <label className="block text-threads-muted text-sm mb-1">지역</label>
-              <Select value={region} onValueChange={setRegion} disabled={loading}>
+              <Select value={region} onValueChange={setRegion} disabled={isBusy}>
                 <SelectItem value="강변">강변 테크노마트</SelectItem>
                 <SelectItem value="영등포">영등포 전자상가</SelectItem>
                 <SelectItem value="구로">구로 디지털단지</SelectItem>
@@ -261,7 +263,7 @@ export default function HomePage() {
             </div>
             <div>
               <label className="block text-threads-muted text-sm mb-1">스타일</label>
-              <Select value={style} onValueChange={(val) => setStyle(val as any)} disabled={loading}>
+              <Select value={style} onValueChange={(val) => setStyle(val as any)} disabled={isBusy}>
                 <SelectItem value="일상 대화형">일상 대화형</SelectItem>
                 <SelectItem value="가볍게 추천형">가볍게 추천형</SelectItem>
                 <SelectItem value="친구에게 알려주는 말투">친구에게 알려주는 말투</SelectItem>
@@ -272,7 +274,7 @@ export default function HomePage() {
           <div className="grid grid-cols-2 gap-4 mb-6">
             <div>
               <label className="block text-threads-muted text-sm mb-1">게시글 개수</label>
-              <Select value={count.toString()} onValueChange={(val) => setCount(parseInt(val))} disabled={loading}>
+              <Select value={count.toString()} onValueChange={(val) => setCount(parseInt(val))} disabled={isBusy}>
                 <SelectItem value="3">3개</SelectItem>
                 <SelectItem value="5">5개</SelectItem>
                 <SelectItem value="10">10개</SelectItem>
@@ -280,7 +282,7 @@ export default function HomePage() {
             </div>
             <div>
               <label className="block text-threads-muted text-sm mb-1">글 길이</label>
-              <Select value={length} onValueChange={setLength} disabled={loading}>
+              <Select value={length} onValueChange={setLength} disabled={isBusy}>
                 <SelectItem value="짧게 (100자 이내)">짧게 (100자 이내)</SelectItem>
                 <SelectItem value="보통 (200자 이내)">보통 (200자 이내)</SelectItem>
                 <SelectItem value="상세하게 (300자 이내)">상세하게 (300자 이내)</SelectItem>
@@ -288,7 +290,6 @@ export default function HomePage() {
             </div>
           </div>
 
-          {/* 사진 첨부 영역 */}
           <div className="mb-6 p-4 rounded-lg bg-threads-surface border border-threads-border">
             <label className="block text-sm font-medium mb-2">
               스레드에 함께 올릴 사진 (선택)
@@ -299,6 +300,7 @@ export default function HomePage() {
                 <button
                   onClick={clearImage}
                   className="absolute -top-3 -right-3 bg-red-500 text-white rounded-full w-7 h-7 flex items-center justify-center text-sm shadow-lg hover:bg-red-600"
+                  disabled={isBusy}
                 >
                   ✕
                 </button>
@@ -309,7 +311,7 @@ export default function HomePage() {
                 variant="outline"
                 onClick={() => fileInputRef.current?.click()}
                 className="w-full border-dashed border-2 py-8 text-threads-muted hover:text-threads-text"
-                disabled={loading}
+                disabled={isBusy}
               >
                 📷 스마트폰 갤러리에서 사진 선택
               </Button>
@@ -326,11 +328,11 @@ export default function HomePage() {
           <Button
             type="button"
             size="lg"
-            disabled={loading}
+            disabled={isBusy}
             onClick={handleGenerate}
             className="w-full flex items-center justify-center gap-2"
           >
-            {loading ? (
+            {isGenerating ? (
               <>
                 <svg className="animate-spin h-5 w-5 text-current" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
@@ -344,7 +346,7 @@ export default function HomePage() {
           </Button>
         </Card>
 
-        {loading && (
+        {isGenerating && (
           <Card className="p-6 mt-6">
             <h3 className="font-semibold mb-4 text-threads-muted animate-pulse">스레드 감성으로 작성하고 있어요...</h3>
             <div className="space-y-4">
@@ -363,7 +365,8 @@ export default function HomePage() {
           </Card>
         )}
 
-        {!loading && generatedPosts.length > 0 && (
+        {/* isGenerating 상태가 아닐 때만 실제 게시글을 보여줍니다. (업로드 중에는 사라지지 않음!) */}
+        {!isGenerating && generatedPosts.length > 0 && (
           <Card className="p-6 mt-6">
             <h3 className="font-semibold mb-4">생성된 게시글 ({generatedPosts.length}개)</h3>
             <div className="space-y-4">
@@ -378,13 +381,14 @@ export default function HomePage() {
                         navigator.clipboard.writeText(post);
                         alert("복사되었습니다!");
                       }}
+                      disabled={isPosting}
                     >
                       복사
                     </Button>
                     <ThreadsPostButton
                       content={post}
                       onPost={() => handlePostToThreads(post)}
-                      isLoading={loading}
+                      isLoading={isPosting} 
                     />
                   </div>
                 </div>
