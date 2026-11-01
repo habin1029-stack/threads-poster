@@ -1,47 +1,73 @@
-import { NextRequest, NextResponse } from "next/server";
-import { GoogleGenAI } from "@google/genai";
+import { NextResponse } from "next/server";
 
-// 정확한 Flash 모델명으로 설정
-const GEMINI_MODEL = "gemini-2.5-flash";
-
-export async function POST(req: NextRequest) {
+export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { keyword, region, store, style, length, count } = body;
+    const { keyword, region, style, length, count } = body;
 
-    // Vercel에 등록한 환경변수 이름과 정확히 일치해야 함
-    const apiKey = process.env.GEMINI_API_KEY; 
-    if (!apiKey) {
-      return NextResponse.json({ error: "API 키가 없습니다." }, { status: 500 });
+    const prompt = `당신은 휴대폰 판매점의 전문 마케터입니다.
+    다음 조건에 맞춰 스레드(Threads)에 올릴 홍보 게시글을 ${count}개 작성해주세요.
+
+    조건:
+    - 핵심 키워드: ${keyword}
+    - 지역: ${region}
+    - 스타일: ${style}
+    - 길이: 각 게시글당 ${length}자 이내
+    - 매장 이름은 절대 넣지 마세요.
+    - 자연스럽고 트렌디하게 작성해주세요.
+
+    답변은 반드시 게시글 내용만 출력하고, 각 게시글 사이에는 "|||" 기호를 넣어서 구분해주세요.`;
+
+    // Vercel에 쉼표(,)로 연결해서 등록한 여러 API 키를 배열로 쪼갭니다.
+    const apiKeys = (process.env.GEMINI_API_KEY || "").split(",").map(k => k.trim());
+
+    if (apiKeys.length === 0 || apiKeys[0] === "") {
+      return NextResponse.json({ error: "API 키가 설정되지 않았습니다." }, { status: 500 });
     }
 
-    // 최신 공식 @google/genai SDK 초기화
-    const ai = new GoogleGenAI({ apiKey });
+    let content = "";
+    let success = false;
+    let lastError = "";
 
-    const prompt = `당신은 한국의 Threads 사용자입니다.
-- 일상 대화처럼 자연스러운 문체로 작성합니다.
-- 휴대폰 구매에 관심을 자연스럽게 유도합니다.
-- 광고 느낌을 빼고 친구에게 말하듯 하세요.
-- 키워드: ${keyword}, 지역: ${region}, 매장: ${store || "미지정"}
-- 스타일: ${style}, 글 길이: ${length}자 이내
-- ${count}개의 서로 다른 게시글을 생성하고, 게시글 사이에 '---' 구분자를 넣어주세요.`;
+    // API 키를 1번부터 순서대로 시도합니다.
+    for (const key of apiKeys) {
+      const response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key=${key}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: prompt }] }]
+          })
+        }
+      );
 
-    // 최신 SDK 방식인 ai.models.generateContent 사용
-    const response = await ai.models.generateContent({
-      model: GEMINI_MODEL,
-      contents: prompt,
-    });
-
-    const text = response.text;
-    if (!text) {
-      throw new Error("AI로부터 응답을 받지 못했습니다.");
+      if (response.ok) {
+        const data = await response.json();
+        content = data.candidates[0].content.parts[0].text;
+        success = true;
+        break; // 성공하면 다음 키로 넘어가지 않고 즉시 종료!
+      } else {
+        // 429(용량 초과) 에러가 나면 다음 순서의 키로 넘어갑니다.
+        const errorData = await response.json().catch(() => ({}));
+        lastError = errorData.error?.message || "알 수 없는 에러";
+        continue; 
+      }
     }
 
-    const posts = text.split("---").map(p => p.trim()).filter(p => p.length > 0);
+    // 모든 키를 다 썼는데도 실패했을 경우
+    if (!success) {
+      throw new Error(`등록된 모든 API 키의 무료 사용량이 초과되었습니다.`);
+    }
 
-    return NextResponse.json({ posts });
+    const posts = content
+      .split("|||")
+      .map((p: string) => p.trim())
+      .filter((p: string) => p.length > 0);
+
+    return NextResponse.json({ posts: posts });
+
   } catch (error: any) {
-    console.error("Gemini API Error:", error);
-    return NextResponse.json({ error: error.message || "알 수 없는 오류가 발생했습니다." }, { status: 500 });
+    return NextResponse.json({ error: error.message || "게시글 생성 실패" }, { status: 500 });
   }
 }
