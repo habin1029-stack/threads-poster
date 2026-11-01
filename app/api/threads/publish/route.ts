@@ -4,7 +4,7 @@ import { cookies } from "next/headers";
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { text, accessToken: bodyToken, userId: bodyUserId } = body;
+    const { text, accessToken: bodyToken } = body;
 
     const cookieStore = await cookies();
     const accessToken = 
@@ -13,16 +13,10 @@ export async function POST(req: Request) {
       cookieStore.get("access_token")?.value || 
       cookieStore.get("token")?.value;
 
-    const userId = 
-      bodyUserId || 
-      cookieStore.get("threads_user_id")?.value || 
-      cookieStore.get("user_id")?.value;
-
     console.log("=== 스레드 발행 요청 디버깅 ===");
-    console.log("User ID:", userId);
     console.log("Access Token 존재 여부:", !!accessToken);
 
-    if (!accessToken || !userId) {
+    if (!accessToken) {
       return NextResponse.json(
         { error: "스레드 인증 정보가 없습니다. 로그인을 다시 진행해 주세요." },
         { status: 400 }
@@ -36,9 +30,9 @@ export async function POST(req: Request) {
       );
     }
 
-    // 1. 텍스트 컨테이너 생성 (media_type: "TEXT")
+    // 1. 텍스트 컨테이너 생성 (userId 대신 'me' 사용)
     const containerRes = await fetch(
-      `https://graph.threads.net/v1.0/${userId}/threads`,
+      `https://graph.threads.net/v1.0/me/threads`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -57,9 +51,9 @@ export async function POST(req: Request) {
     }
     const creationId = containerData.id;
 
-    // 2. 최종 발행 (threads_publish)
+    // 2. 최종 발행 (userId 대신 'me' 사용)
     const publishRes = await fetch(
-      `https://graph.threads.net/v1.0/${userId}/threads_publish`,
+      `https://graph.threads.net/v1.0/me/threads_publish`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
