@@ -16,7 +16,6 @@ import { ThreadsPostButton } from "@/components/threads/ThreadsPostButton";
 import { PostHistory } from "@/components/threads/PostHistory";
 import { toast } from "sonner";
 
-// 실시간 타자(Typewriter) 효과 컴포넌트
 function TypewriterText({ text }: { text: string }) {
   const [displayedText, setDisplayedText] = useState("");
 
@@ -52,6 +51,10 @@ export default function HomePage() {
   const [generatedPosts, setGeneratedPosts] = useState<string[]>([]);
   const [threadsConnected, setThreadsConnected] = useState(false);
   const [threadsUsername, setThreadsUsername] = useState<string | undefined>(undefined);
+  
+  const [threadsAccessToken, setThreadsAccessToken] = useState<string | null>(null);
+  const [threadsUserId, setThreadsUserId] = useState<string | null>(null);
+  
   const [postHistory, setPostHistory] = useState<any[]>([]);
 
   const lengths: Record<string, number> = {
@@ -115,10 +118,11 @@ export default function HomePage() {
   const handleThreadsLogout = () => {
     setThreadsConnected(false);
     setThreadsUsername(undefined);
+    setThreadsAccessToken(null);
+    setThreadsUserId(null);
     toast.success("Threads 계정 연결이 해제되었습니다.");
   };
 
-  // 🌟 텍스트 전용 스레드 발행 함수
   const handlePostToThreads = async (content: string) => {
     if (!threadsConnected) {
       toast.error("Threads 계정에 연결되어 있지 않습니다. 먼저 계정을 연결해주세요.");
@@ -127,7 +131,7 @@ export default function HomePage() {
 
     try {
       setIsPosting(true);
-      toast.info("스레드에 텍스트 게시물을 등록하는 중입니다...");
+      toast.info("스레드에 게시물을 등록하는 중입니다...");
 
       const response = await fetch("/api/threads/publish", {
         method: "POST",
@@ -135,7 +139,9 @@ export default function HomePage() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ 
-          text: content 
+          text: content,
+          accessToken: threadsAccessToken,
+          userId: threadsUserId
         }),
       });
 
@@ -171,6 +177,8 @@ export default function HomePage() {
           const data = await response.json();
           setThreadsConnected(data.connected);
           setThreadsUsername(data.username);
+          if (data.accessToken) setThreadsAccessToken(data.accessToken);
+          if (data.userId) setThreadsUserId(data.userId);
         }
       } catch (error) {
         console.error("Threads 연결 상태 확인 실패:", error);

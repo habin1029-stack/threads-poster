@@ -3,17 +3,22 @@ import { cookies } from "next/headers";
 
 export async function POST(req: Request) {
   try {
-    const { text } = await req.json();
+    const body = await req.json();
+    const { text, accessToken: bodyToken, userId: bodyUserId } = body;
 
     const cookieStore = await cookies();
     const accessToken = 
+      bodyToken || 
       cookieStore.get("threads_access_token")?.value || 
       cookieStore.get("access_token")?.value || 
       cookieStore.get("token")?.value;
 
     const userId = 
+      bodyUserId || 
       cookieStore.get("threads_user_id")?.value || 
       cookieStore.get("user_id")?.value;
+
+    console.log("[Publish API] Token exists:", !!accessToken, "UserId:", userId);
 
     if (!accessToken || !userId) {
       return NextResponse.json(
@@ -38,6 +43,7 @@ export async function POST(req: Request) {
     
     const containerData = await containerRes.json();
     if (!containerRes.ok) {
+      console.error("Meta Container Error:", containerData);
       throw new Error(containerData.error?.message || "텍스트 컨테이너 생성 실패");
     }
     const creationId = containerData.id;
@@ -57,6 +63,7 @@ export async function POST(req: Request) {
 
     const publishData = await publishRes.json();
     if (!publishRes.ok) {
+      console.error("Meta Publish Error:", publishData);
       throw new Error(publishData.error?.message || "스레드 최종 발행 실패");
     }
 
