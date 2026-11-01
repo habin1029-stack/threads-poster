@@ -111,9 +111,9 @@ export default function HomePage() {
     toast.success("게시물이 업데이트되었습니다.");
   };
 
-  // 🌟 메타 앱 ID를 직접 넣어 환경 변수 에러 원천 차단
+  // 🌟 Threads 앱 ID를 직접 적용
   const handleThreadsLogin = () => {
-    const clientId = "1532742768659474"; // 예: "123456789012345" (따옴표 안에 본인 앱 ID 입력)
+    const clientId = "983259668161377"; 
     const redirectUri = window.location.origin + "/api/auth/threads/callback";
     const scope = "threads_basic,threads_content_publish";
     

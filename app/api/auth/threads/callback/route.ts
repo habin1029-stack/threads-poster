@@ -10,9 +10,9 @@ export async function GET(req: Request) {
   }
 
   try {
-    // 🌟 여기에 직접 본인의 메타 앱 정보를 입력합니다.
-    const clientId = process.env.THREADS_CLIENT_ID || "983259668161377";
-    const clientSecret = process.env.THREADS_CLIENT_SECRET || "0a778672547b40a0e854cd0543ab0af3";
+    // 🌟 Threads 앱 ID 직접 적용
+    const clientId = "983259668161377";
+    const clientSecret = process.env.THREADS_CLIENT_SECRET || ""; // 혹은 시크릿 문자열 직접 입력
     const redirectUri = `${url.origin}/api/auth/threads/callback`;
 
     // 1. Authorization Code로 Access Token 교환
