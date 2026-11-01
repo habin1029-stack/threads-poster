@@ -111,7 +111,6 @@ export default function HomePage() {
     toast.success("게시물이 업데이트되었습니다.");
   };
 
-  // 🌟 Threads 앱 ID를 직접 적용
   const handleThreadsLogin = () => {
     const clientId = "983259668161377"; 
     const redirectUri = window.location.origin + "/api/auth/threads/callback";
@@ -186,8 +185,12 @@ export default function HomePage() {
           const data = await response.json();
           setThreadsConnected(data.connected);
           setThreadsUsername(data.username);
-          if (data.accessToken) setThreadsAccessToken(data.accessToken);
-          if (data.userId) setThreadsUserId(data.userId);
+          
+          const token = data.accessToken || data.token || data.access_token;
+          const uId = data.userId || data.user_id;
+
+          if (token) setThreadsAccessToken(token);
+          if (uId) setThreadsUserId(String(uId));
         }
       } catch (error) {
         console.error("Threads 연결 상태 확인 실패:", error);
