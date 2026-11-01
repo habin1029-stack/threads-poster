@@ -1,40 +1,27 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
+import { cookies } from "next/headers";
 
-// Threads 토큰을 쿠키에서 가져옵니다.
-export async function GET(req: NextRequest) {
-  const token = req.cookies.get("threads_token")?.value;
-
-  if (!token) {
-    return NextResponse.json({
-      connected: false,
-      error: "Threads 계정에 연결되어 있지 않습니다."
-    });
-  }
-
-  // 토큰을 사용하여 사용자 정보 가져오기
+export async function GET() {
   try {
-    const response = await fetch("https://graph.threads.net/v1.0/me", {
-      headers: {
-        Authorization: `Bearer ${token}`
-      }
-    });
+    const cookieStore = await cookies();
+    const accessToken = cookieStore.get("threads_access_token")?.value;
+    const userId = cookieStore.get("threads_user_id")?.value;
 
-    if (!response.ok) {
-      return NextResponse.json({
-        connected: false,
-        error: "사용자 정보 가져오기 실패"
-      });
+    if (!accessToken || !userId) {
+      return NextResponse.json({ connected: false });
     }
 
-    const userData = await response.json();
+    // 유저 프로필 정보 가져오기 (이름 확인용)
+    const profileRes = await fetch(
+      `https://graph.threads.net/v1.0/me?fields=id,username&access_token=${accessToken}`
+    );
+    const profileData = await profileRes.json();
+
     return NextResponse.json({
       connected: true,
-      username: userData.username
+      username: profileData.username || "스레드 사용자",
     });
   } catch (error) {
-    return NextResponse.json({
-      connected: false,
-      error: "사용자 정보 가져오기 중 오류가 발생했습니다."
-    });
+    return NextResponse.json({ connected: false });
   }
 }

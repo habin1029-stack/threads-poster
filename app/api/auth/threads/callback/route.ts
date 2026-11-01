@@ -1,95 +1,71 @@
-import { NextRequest, NextResponse } from "next/server";
-import { OAuth2Client } from "google-auth-library";
+import { NextResponse } from "next/server";
+import { cookies } from "next/headers";
 
-// Threads OAuth 설정
-const THREADS_CLIENT_ID = process.env.THREADS_APP_ID;
-const THREADS_CLIENT_SECRET = process.env.THREADS_APP_SECRET;
-const THREADS_REDIRECT_URI = process.env.THREADS_REDIRECT_URI;
+export async function GET(req: Request) {
+  const url = new URL(req.url);
+  const code = url.searchParams.get("code");
 
-// OAuth 클라이언트 생성
-const oauth2Client = new OAuth2Client(
-  THREADS_CLIENT_ID,
-  THREADS_CLIENT_SECRET,
-  THREADS_REDIRECT_URI
-);
-
-// Threads 인증 URL 생성
-const getThreadsAuthUrl = () => {
-  const scopes = [
-    "threads_basic",
-    "threads_content_publish"
-  ];
-  return oauth2Client.generateAuthUrl({
-    access_type: "offline",
-    scope: scopes,
-    prompt: "consent",
-    state: "random_state_string", // 추가적인 보안 추가
-  });
-};
-
-export async function GET(req: NextRequest) {
-  const { searchParams } = new URL(req.url);
-  const code = searchParams.get("code");
-  const error = searchParams.get("error");
-  const state = searchParams.get("state");
-
-  if (error) {
-    return NextResponse.redirect(
-      new URL("/", req.url).toString() +
-        "?error=" +
-        encodeURIComponent(error)
-    );
-  }
-
-  if (!code || !state) {
-    return NextResponse.redirect(
-      new URL("/", req.url).toString() +
-        "?error=missing_code_or_state"
-    );
+  if (!code) {
+    return NextResponse.redirect(new URL("/?error=no_code", req.url));
   }
 
   try {
-    // 인증 코드로 토큰 교환
-    const { tokens } = await oauth2Client.getToken(code);
-    oauth2Client.setCredentials(tokens);
+    const clientId = process.env.THREADS_CLIENT_ID;
+    const clientSecret = process.env.THREADS_CLIENT_SECRET;
+    const redirectUri = process.env.THREADS_REDIRECT_URI;
 
-    // 사용자 정보 가져오기
-    const response = await fetch("https://graph.threads.net/v1.0/me", {
-      headers: {
-        Authorization: `Bearer ${tokens.access_token}`
-      }
+    // 1. Authorization Code로 Access Token 교환
+    const tokenRes = await fetch("https://graph.threads.net/oauth/access_token", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({
+        client_id: clientId!,
+        client_secret: clientSecret!,
+        grant_type: "authorization_code",
+        redirect_uri: redirectUri!,
+        code: code,
+      }),
     });
 
-    if (!response.ok) {
-      throw new Error("사용자 정보 가져오기 실패: " + response.statusText);
+    const tokenData = await tokenRes.json();
+    if (!tokenRes.ok || !tokenData.access_token) {
+      throw new Error(tokenData.error_message || "액세스 토큰 발급 실패");
     }
 
-    const userData = await response.json();
+    const accessToken = tokenData.access_token;
+    const userId = tokenData.user_id;
 
-    // 사용자 정보로 리디렉션
-    const responseWithCookie = NextResponse.redirect(
-      new URL("/", req.url).toString() +
-        "?connected=true&username=" +
-        encodeURIComponent(userData.username)
+    // 2. 롱라이브(Long-lived) 토큰으로 교환 (선택 사항이지만 권장)
+    const longTokenRes = await fetch(
+      `https://graph.threads.net/access_token?grant_type=th_exchange_token&client_secret=${clientSecret}&access_token=${accessToken}`
     );
+    const longTokenData = await longTokenRes.json();
+    const finalAccessToken = longTokenData.access_token || accessToken;
 
-    responseWithCookie.cookies.set(
-      "threads_token",
-      tokens.access_token!, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        maxAge: 60 * 60 * 24 * 7, // 7일
-        path: "/",
-      }
-    );
+    // 3. 🌟 쿠키에 토큰과 유저 ID를 확실하게 저장 (7일간 유지)
+    const cookieStore = await cookies();
+    cookieStore.set({
+      name: "threads_access_token",
+      value: finalAccessToken,
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      path: "/",
+      maxAge: 60 * 60 * 24 * 7,
+    });
 
-    return responseWithCookie;
+    cookieStore.set({
+      name: "threads_user_id",
+      value: String(userId),
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      path: "/",
+      maxAge: 60 * 60 * 24 * 7,
+    });
+
+    // 로그인 성공 후 메인 페이지로 리다이렉트
+    return NextResponse.redirect(new URL("/", req.url));
   } catch (error: any) {
-    console.error("Threads 인증 오류:", error);
-    return NextResponse.redirect(
-      new URL("/", req.url).toString() +
-        "?error=" +
-        encodeURIComponent(error.message || "authentication_failed")
-    );
+    console.error("Threads Login Callback Error:", error);
+    return NextResponse.redirect(new URL(`/?error=${encodeURIComponent(error.message)}`, req.url));
   }
 }
