@@ -25,6 +25,13 @@ export async function POST(req: Request) {
       );
     }
 
+    if (!text || !text.trim()) {
+      return NextResponse.json(
+        { error: "게시할 텍스트 내용이 없습니다." },
+        { status: 400 }
+      );
+    }
+
     // 1. 텍스트 컨테이너 생성 (media_type: "TEXT")
     const containerRes = await fetch(
       `https://graph.threads.net/v1.0/${userId}/threads`,
@@ -41,6 +48,7 @@ export async function POST(req: Request) {
     
     const containerData = await containerRes.json();
     if (!containerRes.ok) {
+      console.error("Container Creation Error:", containerData);
       throw new Error(containerData.error?.message || "텍스트 컨테이너 생성 실패");
     }
     const creationId = containerData.id;
@@ -60,13 +68,18 @@ export async function POST(req: Request) {
 
     const publishData = await publishRes.json();
     if (!publishRes.ok) {
+      console.error("Threads Publish Error:", publishData);
       throw new Error(publishData.error?.message || "스레드 최종 발행 실패");
     }
 
-    return NextResponse.json({ success: true, id: publishData.id, permalink: publishData.permalink });
+    return NextResponse.json({ 
+      success: true, 
+      id: publishData.id, 
+      permalink: publishData.permalink 
+    });
 
   } catch (error: any) {
-    console.error("Threads Publish Error:", error);
+    console.error("Threads Publish Catch Error:", error);
     return NextResponse.json({ error: error.message || "발행 실패" }, { status: 500 });
   }
 }
