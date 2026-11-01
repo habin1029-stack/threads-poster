@@ -10,7 +10,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectItem } from "@/components/ui/select";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { ThreadsLoginButton } from "@/components/threads/ThreadsLoginButton";
 import { ThreadsPostButton } from "@/components/threads/ThreadsPostButton";
 import { PostHistory } from "@/components/threads/PostHistory";
@@ -52,36 +52,12 @@ export default function HomePage() {
   const [generatedPosts, setGeneratedPosts] = useState<string[]>([]);
   const [threadsConnected, setThreadsConnected] = useState(false);
   const [threadsUsername, setThreadsUsername] = useState<string | undefined>(undefined);
-  
-  // 🌟 토큰과 유저 ID를 상태로 안전하게 보관합니다.
-  const [threadsAccessToken, setThreadsAccessToken] = useState<string | null>(null);
-  const [threadsUserId, setThreadsUserId] = useState<string | null>(null);
-  
   const [postHistory, setPostHistory] = useState<any[]>([]);
-  
-  const [selectedImage, setSelectedImage] = useState<File | null>(null);
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const lengths: Record<string, number> = {
     "짧게 (100자 이내)": 100,
     "보통 (200자 이내)": 200,
     "상세하게 (300자 이내)": 300,
-  };
-
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setSelectedImage(file);
-      const url = URL.createObjectURL(file);
-      setImagePreview(url);
-    }
-  };
-
-  const clearImage = () => {
-    setSelectedImage(null);
-    setImagePreview(null);
-    if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
   const handleGenerate = async () => {
@@ -139,11 +115,10 @@ export default function HomePage() {
   const handleThreadsLogout = () => {
     setThreadsConnected(false);
     setThreadsUsername(undefined);
-    setThreadsAccessToken(null);
-    setThreadsUserId(null);
     toast.success("Threads 계정 연결이 해제되었습니다.");
   };
 
+  // 🌟 텍스트 전용 스레드 발행 함수
   const handlePostToThreads = async (content: string) => {
     if (!threadsConnected) {
       toast.error("Threads 계정에 연결되어 있지 않습니다. 먼저 계정을 연결해주세요.");
@@ -152,38 +127,15 @@ export default function HomePage() {
 
     try {
       setIsPosting(true);
-      let uploadedImageUrl = undefined;
+      toast.info("스레드에 텍스트 게시물을 등록하는 중입니다...");
 
-      if (selectedImage) {
-        toast.info("사진을 안전하게 업로드 중입니다...");
-        const formData = new FormData();
-        formData.append("file", selectedImage);
-
-        const uploadRes = await fetch("/api/upload", {
-          method: "POST",
-          body: formData,
-        });
-
-        const uploadData = await uploadRes.json();
-        if (!uploadRes.ok) {
-          throw new Error(uploadData.error || "사진 저장소 업로드 실패");
-        }
-        uploadedImageUrl = uploadData.url;
-      }
-
-      toast.info("스레드에 게시물을 등록하는 중입니다 (약 5초 소요)...");
-      
-      // 🌟 프론트엔드 상태에 있는 토큰과 유저ID를 함께 명시적으로 전달합니다.
       const response = await fetch("/api/threads/publish", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ 
-          text: content, 
-          imageUrl: uploadedImageUrl,
-          accessToken: threadsAccessToken,
-          userId: threadsUserId
+          text: content 
         }),
       });
 
@@ -219,8 +171,6 @@ export default function HomePage() {
           const data = await response.json();
           setThreadsConnected(data.connected);
           setThreadsUsername(data.username);
-          if (data.accessToken) setThreadsAccessToken(data.accessToken);
-          if (data.userId) setThreadsUserId(data.userId);
         }
       } catch (error) {
         console.error("Threads 연결 상태 확인 실패:", error);
@@ -304,41 +254,6 @@ export default function HomePage() {
             </div>
           </div>
 
-          <div className="mb-6 p-4 rounded-lg bg-threads-surface border border-threads-border">
-            <label className="block text-sm font-medium mb-2">
-              스레드에 함께 올릴 사진 (선택)
-            </label>
-            {imagePreview ? (
-              <div className="relative inline-block mt-2">
-                <img src={imagePreview} alt="미리보기" className="h-40 w-auto rounded-md object-cover border border-threads-border" />
-                <button
-                  onClick={clearImage}
-                  className="absolute -top-3 -right-3 bg-red-500 text-white rounded-full w-7 h-7 flex items-center justify-center text-sm shadow-lg hover:bg-red-600"
-                  disabled={isBusy}
-                >
-                  ✕
-                </button>
-              </div>
-            ) : (
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => fileInputRef.current?.click()}
-                className="w-full border-dashed border-2 py-8 text-threads-muted hover:text-threads-text"
-                disabled={isBusy}
-              >
-                📷 스마트폰 갤러리에서 사진 선택
-              </Button>
-            )}
-            <input
-              type="file"
-              ref={fileInputRef}
-              onChange={handleImageChange}
-              accept="image/*"
-              className="hidden"
-            />
-          </div>
-
           <Button
             type="button"
             size="lg"
@@ -369,10 +284,6 @@ export default function HomePage() {
                   <div className="h-4 bg-threads-border rounded w-3/4 mb-3 opacity-50"></div>
                   <div className="h-4 bg-threads-border rounded w-full mb-3 opacity-50"></div>
                   <div className="h-4 bg-threads-border rounded w-5/6 mb-4 opacity-50"></div>
-                  <div className="flex gap-2">
-                    <div className="h-8 w-16 bg-threads-border rounded opacity-50"></div>
-                    <div className="h-8 w-24 bg-threads-border rounded opacity-50"></div>
-                  </div>
                 </div>
               ))}
             </div>

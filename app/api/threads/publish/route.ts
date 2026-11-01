@@ -3,79 +3,46 @@ import { cookies } from "next/headers";
 
 export async function POST(req: Request) {
   try {
-    const body = await req.json();
-    const { text, imageUrl } = body;
+    const { text } = await req.json();
 
-    // 1. 쿠키 또는 요청 Body에서 인증 정보를 무조건 찾아냅니다.
     const cookieStore = await cookies();
     const accessToken = 
-      body.accessToken || 
       cookieStore.get("threads_access_token")?.value || 
       cookieStore.get("access_token")?.value || 
       cookieStore.get("token")?.value;
 
     const userId = 
-      body.userId || 
       cookieStore.get("threads_user_id")?.value || 
       cookieStore.get("user_id")?.value;
 
-    console.log("[Publish API Final] Token exists:", !!accessToken, "UserId:", userId);
-
     if (!accessToken || !userId) {
       return NextResponse.json(
-        { error: "스레드 인증 정보가 없습니다. 스레드 로그인을 다시 진행해 주세요." },
+        { error: "스레드 인증 정보가 없습니다. 로그인을 다시 진행해 주세요." },
         { status: 400 }
       );
     }
 
-    let creationId = "";
-
-    if (imageUrl) {
-      console.log("[Publish API Final] Creating IMAGE container with URL:", imageUrl);
-      const containerRes = await fetch(
-        `https://graph.threads.net/v1.0/${userId}/threads`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            media_type: "IMAGE",
-            image_url: imageUrl,
-            text: text,
-            access_token: accessToken,
-          }),
-        }
-      );
-      
-      const containerData = await containerRes.json();
-      if (!containerRes.ok) {
-        console.error("Meta Container Error:", containerData);
-        throw new Error(containerData.error?.message || "이미지 컨테이너 생성 실패");
+    // 1. 텍스트 컨테이너 생성
+    const containerRes = await fetch(
+      `https://graph.threads.net/v1.0/${userId}/threads`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          media_type: "TEXT",
+          text: text,
+          access_token: accessToken,
+        }),
       }
-      creationId = containerData.id;
-    } else {
-      console.log("[Publish API Final] Creating TEXT container");
-      const containerRes = await fetch(
-        `https://graph.threads.net/v1.0/${userId}/threads`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            media_type: "TEXT",
-            text: text,
-            access_token: accessToken,
-          }),
-        }
-      );
-      
-      const containerData = await containerRes.json();
-      if (!containerRes.ok) {
-        console.error("Meta Container Error:", containerData);
-        throw new Error(containerData.error?.message || "텍스트 컨테이너 생성 실패");
-      }
-      creationId = containerData.id;
+    );
+    
+    const containerData = await containerRes.json();
+    if (!containerRes.ok) {
+      throw new Error(containerData.error?.message || "텍스트 컨테이너 생성 실패");
     }
+    const creationId = containerData.id;
 
-    console.log("[Publish API Final] Publishing container ID:", creationId);
+    // 2. 최종 발행
     const publishRes = await fetch(
       `https://graph.threads.net/v1.0/${userId}/threads_publish`,
       {
@@ -90,11 +57,9 @@ export async function POST(req: Request) {
 
     const publishData = await publishRes.json();
     if (!publishRes.ok) {
-      console.error("Meta Publish Error:", publishData);
       throw new Error(publishData.error?.message || "스레드 최종 발행 실패");
     }
 
-    console.log("[Publish API Final] Success:", publishData);
     return NextResponse.json({ success: true, id: publishData.id, permalink: publishData.permalink });
 
   } catch (error: any) {
