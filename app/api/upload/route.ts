@@ -12,7 +12,7 @@ export async function POST(request: Request) {
 
     console.log("[Upload API] Starting file upload to Vercel Blob...", file.name);
 
-    // Vercel Blob 업로드 (addRandomSuffix: true 추가하여 중복 방지)
+    // 🌟 핵심 해결: addRandomSuffix: true 옵션을 추가하여 중복 파일명 충돌을 원천 차단합니다.
     const blob = await put(file.name, file, { 
       access: 'public',
       token: process.env.BLOB_READ_WRITE_TOKEN,
