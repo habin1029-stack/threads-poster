@@ -111,8 +111,17 @@ export default function HomePage() {
     toast.success("게시물이 업데이트되었습니다.");
   };
 
+  // 🌟 메타 앱 ID를 직접 넣어 환경 변수 에러 원천 차단
   const handleThreadsLogin = () => {
-    window.location.href = "/api/auth/threads";
+    const clientId = "983259668161377"; // 예: "123456789012345" (따옴표 안에 본인 앱 ID 입력)
+    const redirectUri = window.location.origin + "/api/auth/threads/callback";
+    const scope = "threads_basic,threads_content_publish";
+    
+    const authUrl = `https://threads.net/oauth/authorize?client_id=${clientId}&redirect_uri=${encodeURIComponent(
+      redirectUri
+    )}&scope=${scope}&response_type=code`;
+
+    window.location.href = authUrl;
   };
 
   const handleThreadsLogout = () => {

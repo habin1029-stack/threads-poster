@@ -10,19 +10,20 @@ export async function GET(req: Request) {
   }
 
   try {
-    const clientId = process.env.THREADS_CLIENT_ID;
-    const clientSecret = process.env.THREADS_CLIENT_SECRET;
-    const redirectUri = process.env.THREADS_REDIRECT_URI;
+    // 🌟 여기에 직접 본인의 메타 앱 정보를 입력합니다.
+    const clientId = process.env.THREADS_CLIENT_ID || "983259668161377";
+    const clientSecret = process.env.THREADS_CLIENT_SECRET || "0a778672547b40a0e854cd0543ab0af3";
+    const redirectUri = `${url.origin}/api/auth/threads/callback`;
 
     // 1. Authorization Code로 Access Token 교환
     const tokenRes = await fetch("https://graph.threads.net/oauth/access_token", {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body: new URLSearchParams({
-        client_id: clientId!,
-        client_secret: clientSecret!,
+        client_id: clientId,
+        client_secret: clientSecret,
         grant_type: "authorization_code",
-        redirect_uri: redirectUri!,
+        redirect_uri: redirectUri,
         code: code,
       }),
     });
@@ -35,18 +36,11 @@ export async function GET(req: Request) {
     const accessToken = tokenData.access_token;
     const userId = tokenData.user_id;
 
-    // 2. 롱라이브(Long-lived) 토큰으로 교환 (선택 사항이지만 권장)
-    const longTokenRes = await fetch(
-      `https://graph.threads.net/access_token?grant_type=th_exchange_token&client_secret=${clientSecret}&access_token=${accessToken}`
-    );
-    const longTokenData = await longTokenRes.json();
-    const finalAccessToken = longTokenData.access_token || accessToken;
-
-    // 3. 🌟 쿠키에 토큰과 유저 ID를 확실하게 저장 (7일간 유지)
+    // 2. 쿠키에 토큰과 유저 ID 저장
     const cookieStore = await cookies();
     cookieStore.set({
       name: "threads_access_token",
-      value: finalAccessToken,
+      value: accessToken,
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       path: "/",
@@ -62,7 +56,6 @@ export async function GET(req: Request) {
       maxAge: 60 * 60 * 24 * 7,
     });
 
-    // 로그인 성공 후 메인 페이지로 리다이렉트
     return NextResponse.redirect(new URL("/", req.url));
   } catch (error: any) {
     console.error("Threads Login Callback Error:", error);
