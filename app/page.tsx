@@ -52,6 +52,11 @@ export default function HomePage() {
   const [generatedPosts, setGeneratedPosts] = useState<string[]>([]);
   const [threadsConnected, setThreadsConnected] = useState(false);
   const [threadsUsername, setThreadsUsername] = useState<string | undefined>(undefined);
+  
+  // 🌟 토큰과 유저 ID를 상태로 안전하게 보관합니다.
+  const [threadsAccessToken, setThreadsAccessToken] = useState<string | null>(null);
+  const [threadsUserId, setThreadsUserId] = useState<string | null>(null);
+  
   const [postHistory, setPostHistory] = useState<any[]>([]);
   
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
@@ -134,6 +139,8 @@ export default function HomePage() {
   const handleThreadsLogout = () => {
     setThreadsConnected(false);
     setThreadsUsername(undefined);
+    setThreadsAccessToken(null);
+    setThreadsUserId(null);
     toast.success("Threads 계정 연결이 해제되었습니다.");
   };
 
@@ -166,7 +173,7 @@ export default function HomePage() {
 
       toast.info("스레드에 게시물을 등록하는 중입니다 (약 5초 소요)...");
       
-      // 🌟 핵심 수정: 백엔드가 요구하는 필드명인 'text'로 content를 전달하도록 수정
+      // 🌟 프론트엔드 상태에 있는 토큰과 유저ID를 함께 명시적으로 전달합니다.
       const response = await fetch("/api/threads/publish", {
         method: "POST",
         headers: {
@@ -174,7 +181,9 @@ export default function HomePage() {
         },
         body: JSON.stringify({ 
           text: content, 
-          imageUrl: uploadedImageUrl 
+          imageUrl: uploadedImageUrl,
+          accessToken: threadsAccessToken,
+          userId: threadsUserId
         }),
       });
 
@@ -210,6 +219,8 @@ export default function HomePage() {
           const data = await response.json();
           setThreadsConnected(data.connected);
           setThreadsUsername(data.username);
+          if (data.accessToken) setThreadsAccessToken(data.accessToken);
+          if (data.userId) setThreadsUserId(data.userId);
         }
       } catch (error) {
         console.error("Threads 연결 상태 확인 실패:", error);
