@@ -10,7 +10,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectItem } from "@/components/ui/select";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { ThreadsLoginButton } from "@/components/threads/ThreadsLoginButton";
 import { ThreadsPostButton } from "@/components/threads/ThreadsPostButton";
 import { PostHistory } from "@/components/threads/PostHistory";
@@ -50,12 +50,33 @@ export default function HomePage() {
   const [threadsConnected, setThreadsConnected] = useState(false);
   const [threadsUsername, setThreadsUsername] = useState<string | undefined>(undefined);
   const [postHistory, setPostHistory] = useState<any[]>([]);
-  const [selectedPostIndex, setSelectedPostIndex] = useState<number | null>(null);
+  
+  // 사진 첨부를 위한 상태 추가
+  const [selectedImage, setSelectedImage] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const lengths: Record<string, number> = {
     "짧게 (100자 이내)": 100,
     "보통 (200자 이내)": 200,
     "상세하게 (300자 이내)": 300,
+  };
+
+  // 사진 선택 시 미리보기 생성 함수
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setSelectedImage(file);
+      const url = URL.createObjectURL(file);
+      setImagePreview(url);
+    }
+  };
+
+  // 사진 지우기 함수
+  const clearImage = () => {
+    setSelectedImage(null);
+    setImagePreview(null);
+    if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
   const handleGenerate = async () => {
@@ -124,12 +145,34 @@ export default function HomePage() {
 
     try {
       setLoading(true);
+      let uploadedImageUrl = undefined;
+
+      // 1. 사진이 첨부되어 있다면 Vercel Blob에 먼저 업로드
+      if (selectedImage) {
+        toast.info("사진을 안전하게 업로드 중입니다...");
+        const formData = new FormData();
+        formData.append("file", selectedImage);
+
+        const uploadRes = await fetch("/api/upload", {
+          method: "POST",
+          body: formData,
+        });
+
+        const uploadData = await uploadRes.json();
+        if (!uploadRes.ok) {
+          throw new Error(uploadData.error || "사진 저장소 업로드 실패");
+        }
+        uploadedImageUrl = uploadData.url;
+      }
+
+      // 2. 업로드된 사진 주소(있는 경우)와 텍스트를 스레드로 전송
+      toast.info("스레드에 게시물을 등록하는 중입니다 (약 5초 소요)...");
       const response = await fetch("/api/threads/publish", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ content }),
+        body: JSON.stringify({ content, imageUrl: uploadedImageUrl }),
       });
 
       const responseData = await response.json();
@@ -148,7 +191,7 @@ export default function HomePage() {
           permalink: responseData.permalink,
         },
       ]);
-      toast.success(`게시물이 성공적으로 Threads에 게시되었습니다.`);
+      toast.success(`게시물이 성공적으로 Threads에 게시되었습니다!`);
     } catch (error: any) {
       toast.error(`게시 실패: ${error.message}`);
     } finally {
@@ -226,7 +269,7 @@ export default function HomePage() {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4 mb-4">
+          <div className="grid grid-cols-2 gap-4 mb-6">
             <div>
               <label className="block text-threads-muted text-sm mb-1">게시글 개수</label>
               <Select value={count.toString()} onValueChange={(val) => setCount(parseInt(val))} disabled={loading}>
@@ -245,6 +288,41 @@ export default function HomePage() {
             </div>
           </div>
 
+          {/* 사진 첨부 영역 */}
+          <div className="mb-6 p-4 rounded-lg bg-threads-surface border border-threads-border">
+            <label className="block text-sm font-medium mb-2">
+              스레드에 함께 올릴 사진 (선택)
+            </label>
+            {imagePreview ? (
+              <div className="relative inline-block mt-2">
+                <img src={imagePreview} alt="미리보기" className="h-40 w-auto rounded-md object-cover border border-threads-border" />
+                <button
+                  onClick={clearImage}
+                  className="absolute -top-3 -right-3 bg-red-500 text-white rounded-full w-7 h-7 flex items-center justify-center text-sm shadow-lg hover:bg-red-600"
+                >
+                  ✕
+                </button>
+              </div>
+            ) : (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => fileInputRef.current?.click()}
+                className="w-full border-dashed border-2 py-8 text-threads-muted hover:text-threads-text"
+                disabled={loading}
+              >
+                📷 스마트폰 갤러리에서 사진 선택
+              </Button>
+            )}
+            <input
+              type="file"
+              ref={fileInputRef}
+              onChange={handleImageChange}
+              accept="image/*"
+              className="hidden"
+            />
+          </div>
+
           <Button
             type="button"
             size="lg"
@@ -258,7 +336,7 @@ export default function HomePage() {
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                 </svg>
-                <span>AI가 열심히 작성 중입니다... ✍️</span>
+                <span>열심히 처리 중입니다... ✍️</span>
               </>
             ) : (
               "AI 게시글 생성"
@@ -266,7 +344,6 @@ export default function HomePage() {
           </Button>
         </Card>
 
-        {/* 로딩 중에 보여줄 깜빡이는 스켈레톤 UI */}
         {loading && (
           <Card className="p-6 mt-6">
             <h3 className="font-semibold mb-4 text-threads-muted animate-pulse">스레드 감성으로 작성하고 있어요...</h3>
@@ -286,7 +363,6 @@ export default function HomePage() {
           </Card>
         )}
 
-        {/* 로딩이 끝난 후 진짜 게시글 표시 */}
         {!loading && generatedPosts.length > 0 && (
           <Card className="p-6 mt-6">
             <h3 className="font-semibold mb-4">생성된 게시글 ({generatedPosts.length}개)</h3>
@@ -316,20 +392,6 @@ export default function HomePage() {
             </div>
 
             <PostHistory posts={postHistory} onPostUpdated={handlePostUpdate} />
-
-            <div className="mt-4 pt-4 border-t border-threads-border">
-              <Button
-                type="button"
-                onClick={() => {
-                  const text = generatedPosts.join("\n\n");
-                  navigator.clipboard.writeText(text);
-                  alert("전체 게시글이 복사되었습니다!");
-                }}
-                className="w-full"
-              >
-                전체 복사
-              </Button>
-            </div>
           </Card>
         )}
       </div>
