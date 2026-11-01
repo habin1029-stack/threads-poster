@@ -10,9 +10,8 @@ export async function GET(req: Request) {
   }
 
   try {
-    // 🌟 Threads 앱 ID 직접 적용
     const clientId = "983259668161377";
-    const clientSecret = process.env.THREADS_CLIENT_SECRET || "0a778672547b40a0e854cd0543ab0af3"; // 혹은 시크릿 문자열 직접 입력
+    const clientSecret = "0a778672547b40a0e854cd0543ab0af3"; 
     const redirectUri = `${url.origin}/api/auth/threads/callback`;
 
     // 1. Authorization Code로 Access Token 교환
@@ -36,7 +35,7 @@ export async function GET(req: Request) {
     const accessToken = tokenData.access_token;
     const userId = tokenData.user_id;
 
-    // 2. 쿠키에 토큰과 유저 ID 저장
+    // 2. 쿠키에 토큰과 유저 ID 안전하게 저장
     const cookieStore = await cookies();
     cookieStore.set({
       name: "threads_access_token",
