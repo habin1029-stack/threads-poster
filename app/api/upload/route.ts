@@ -12,10 +12,11 @@ export async function POST(request: Request) {
 
     console.log("[Upload API] Starting file upload to Vercel Blob...", file.name);
 
-    // Vercel Blob 업로드 실행
+    // Vercel Blob 업로드 (addRandomSuffix: true 추가하여 중복 방지)
     const blob = await put(file.name, file, { 
       access: 'public',
-      token: process.env.BLOB_READ_WRITE_TOKEN, // 토큰 명시적 전달
+      token: process.env.BLOB_READ_WRITE_TOKEN,
+      addRandomSuffix: true, 
     });
 
     console.log("[Upload API] Upload successful. URL:", blob.url);
