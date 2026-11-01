@@ -111,9 +111,10 @@ export default function HomePage() {
     toast.success("게시물이 업데이트되었습니다.");
   };
 
-  const handleThreadsLogin = () => {
+ const handleThreadsLogin = () => {
     const clientId = "983259668161377"; 
-    const redirectUri = window.location.origin + "/api/auth/threads/callback";
+    // 🌟 메타 콘솔에 등록된 주소와 100% 일치하도록 고정
+    const redirectUri = "https://threads-poster-seven.vercel.app/api/auth/threads/callback";
     const scope = "threads_basic,threads_content_publish";
     
     const authUrl = `https://threads.net/oauth/authorize?client_id=${clientId}&redirect_uri=${encodeURIComponent(
