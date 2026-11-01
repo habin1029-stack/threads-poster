@@ -12,7 +12,8 @@ export async function GET(req: Request) {
   try {
     const clientId = "983259668161377";
     const clientSecret = "0a778672547b40a0e854cd0543ab0af3"; 
-    const redirectUri = `${url.origin}/api/auth/threads/callback`;
+    // Vercel 배포 주소가 고정되도록 명시하거나 url.origin을 안전하게 사용
+    const redirectUri = `https://threads-poster-seven.vercel.app/api/auth/threads/callback`;
 
     // 1. Authorization Code로 Access Token 교환
     const tokenRes = await fetch("https://graph.threads.net/oauth/access_token", {
