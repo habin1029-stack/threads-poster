@@ -6,7 +6,7 @@ export async function POST(req: Request) {
     const body = await req.json();
     const { text, imageUrl } = body;
 
-    // 1. 요청 Body나 쿠키 어디에 있든 인증 정보를 강력하게 찾아냅니다.
+    // 1. 쿠키 또는 요청 Body에서 인증 정보를 무조건 찾아냅니다.
     const cookieStore = await cookies();
     const accessToken = 
       body.accessToken || 
@@ -19,7 +19,7 @@ export async function POST(req: Request) {
       cookieStore.get("threads_user_id")?.value || 
       cookieStore.get("user_id")?.value;
 
-    console.log("[Publish API] Token exists:", !!accessToken, "UserId:", userId);
+    console.log("[Publish API Final] Token exists:", !!accessToken, "UserId:", userId);
 
     if (!accessToken || !userId) {
       return NextResponse.json(
@@ -31,7 +31,7 @@ export async function POST(req: Request) {
     let creationId = "";
 
     if (imageUrl) {
-      console.log("[Publish API] Creating IMAGE container with URL:", imageUrl);
+      console.log("[Publish API Final] Creating IMAGE container with URL:", imageUrl);
       const containerRes = await fetch(
         `https://graph.threads.net/v1.0/${userId}/threads`,
         {
@@ -53,7 +53,7 @@ export async function POST(req: Request) {
       }
       creationId = containerData.id;
     } else {
-      console.log("[Publish API] Creating TEXT container");
+      console.log("[Publish API Final] Creating TEXT container");
       const containerRes = await fetch(
         `https://graph.threads.net/v1.0/${userId}/threads`,
         {
@@ -75,7 +75,7 @@ export async function POST(req: Request) {
       creationId = containerData.id;
     }
 
-    console.log("[Publish API] Publishing container ID:", creationId);
+    console.log("[Publish API Final] Publishing container ID:", creationId);
     const publishRes = await fetch(
       `https://graph.threads.net/v1.0/${userId}/threads_publish`,
       {
@@ -94,7 +94,7 @@ export async function POST(req: Request) {
       throw new Error(publishData.error?.message || "스레드 최종 발행 실패");
     }
 
-    console.log("[Publish API] Success:", publishData);
+    console.log("[Publish API Final] Success:", publishData);
     return NextResponse.json({ success: true, id: publishData.id, permalink: publishData.permalink });
 
   } catch (error: any) {
