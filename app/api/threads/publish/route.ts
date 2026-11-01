@@ -3,18 +3,27 @@ import { cookies } from "next/headers";
 
 export async function POST(req: Request) {
   try {
-    const { text, imageUrl } = await req.json();
+    const body = await req.json();
+    const { text, imageUrl } = body;
 
-    // 쿠키에서 스레드 인증 정보 안전하게 추출
-    const cookieStore = cookies();
-    const accessToken = cookieStore.get("threads_access_token")?.value;
-    const userId = cookieStore.get("threads_user_id")?.value;
+    // 1. 요청 Body나 쿠키 어디에 있든 인증 정보를 강력하게 찾아냅니다.
+    const cookieStore = await cookies();
+    const accessToken = 
+      body.accessToken || 
+      cookieStore.get("threads_access_token")?.value || 
+      cookieStore.get("access_token")?.value || 
+      cookieStore.get("token")?.value;
+
+    const userId = 
+      body.userId || 
+      cookieStore.get("threads_user_id")?.value || 
+      cookieStore.get("user_id")?.value;
 
     console.log("[Publish API] Token exists:", !!accessToken, "UserId:", userId);
 
     if (!accessToken || !userId) {
       return NextResponse.json(
-        { error: "스레드 인증 정보가 만료되었거나 없습니다. 다시 로그인해 주세요." },
+        { error: "스레드 인증 정보가 없습니다. 스레드 로그인을 다시 진행해 주세요." },
         { status: 400 }
       );
     }
@@ -86,7 +95,7 @@ export async function POST(req: Request) {
     }
 
     console.log("[Publish API] Success:", publishData);
-    return NextResponse.json({ success: true, id: publishData.id });
+    return NextResponse.json({ success: true, id: publishData.id, permalink: publishData.permalink });
 
   } catch (error: any) {
     console.error("Threads Publish Error:", error);
