@@ -26,7 +26,7 @@ export async function POST(req: Request) {
         "Authorization": `Bearer ${process.env.GEMINI_API_KEY}` // 키 이름은 그대로 두고 Groq 키를 넣습니다.
       },
       body: JSON.stringify({
-        model: "llama3-70b-8192", // Groq 무료 고성능 모델
+        model: "openai/gpt-oss-120b", // Groq 무료 고성능 모델
         messages: [{ role: "user", content: prompt }],
         temperature: 0.7,
       }),
