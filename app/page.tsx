@@ -46,7 +46,6 @@ export default function HomePage() {
   const [count, setCount] = useState(3);
   const [length, setLength] = useState("짧게 (100자 이내)");
   
-  // 🌟 핵심 수정: 생성 로딩과 업로드 로딩을 완벽하게 분리했습니다!
   const [isGenerating, setIsGenerating] = useState(false);
   const [isPosting, setIsPosting] = useState(false);
   
@@ -145,7 +144,7 @@ export default function HomePage() {
     }
 
     try {
-      setIsPosting(true); // 이제 업로드 중일 때는 화면이 깜빡이지 않습니다.
+      setIsPosting(true);
       let uploadedImageUrl = undefined;
 
       if (selectedImage) {
@@ -166,12 +165,17 @@ export default function HomePage() {
       }
 
       toast.info("스레드에 게시물을 등록하는 중입니다 (약 5초 소요)...");
+      
+      // 🌟 핵심 수정: 백엔드가 요구하는 필드명인 'text'로 content를 전달하도록 수정
       const response = await fetch("/api/threads/publish", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ content, imageUrl: uploadedImageUrl }),
+        body: JSON.stringify({ 
+          text: content, 
+          imageUrl: uploadedImageUrl 
+        }),
       });
 
       const responseData = await response.json();
@@ -183,7 +187,7 @@ export default function HomePage() {
       setPostHistory([
         ...postHistory,
         {
-          id: responseData.postId,
+          id: responseData.postId || responseData.id,
           content,
           date: new Date().toLocaleString(),
           status: "success",
@@ -214,7 +218,6 @@ export default function HomePage() {
     checkThreadsConnection();
   }, []);
 
-  // 화면의 버튼이나 입력칸은 '글 생성 중'이거나 '업로드 중'일 때 조작을 방지합니다.
   const isBusy = isGenerating || isPosting;
 
   return (
@@ -246,7 +249,7 @@ export default function HomePage() {
             <Input
               placeholder="예: 휴대폰 성지, 가격, 강변 쪽"
               value={keyword}
-              onValueChange={setKeyword}
+              onChange={(e) => setKeyword(e.target.value)}
               disabled={isBusy}
             />
           </div>
@@ -365,7 +368,6 @@ export default function HomePage() {
           </Card>
         )}
 
-        {/* isGenerating 상태가 아닐 때만 실제 게시글을 보여줍니다. (업로드 중에는 사라지지 않음!) */}
         {!isGenerating && generatedPosts.length > 0 && (
           <Card className="p-6 mt-6">
             <h3 className="font-semibold mb-4">생성된 게시글 ({generatedPosts.length}개)</h3>
