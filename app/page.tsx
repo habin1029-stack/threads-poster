@@ -113,7 +113,7 @@ export default function HomePage() {
 
   // 🌟 메타 앱 ID를 직접 넣어 환경 변수 에러 원천 차단
   const handleThreadsLogin = () => {
-    const clientId = "983259668161377"; // 예: "123456789012345" (따옴표 안에 본인 앱 ID 입력)
+    const clientId = "1532742768659474"; // 예: "123456789012345" (따옴표 안에 본인 앱 ID 입력)
     const redirectUri = window.location.origin + "/api/auth/threads/callback";
     const scope = "threads_basic,threads_content_publish";
     

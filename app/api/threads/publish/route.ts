@@ -18,8 +18,6 @@ export async function POST(req: Request) {
       cookieStore.get("threads_user_id")?.value || 
       cookieStore.get("user_id")?.value;
 
-    console.log("[Publish API] Token exists:", !!accessToken, "UserId:", userId);
-
     if (!accessToken || !userId) {
       return NextResponse.json(
         { error: "스레드 인증 정보가 없습니다. 로그인을 다시 진행해 주세요." },
@@ -27,7 +25,7 @@ export async function POST(req: Request) {
       );
     }
 
-    // 1. 텍스트 컨테이너 생성
+    // 1. 텍스트 컨테이너 생성 (media_type: "TEXT")
     const containerRes = await fetch(
       `https://graph.threads.net/v1.0/${userId}/threads`,
       {
@@ -43,12 +41,11 @@ export async function POST(req: Request) {
     
     const containerData = await containerRes.json();
     if (!containerRes.ok) {
-      console.error("Meta Container Error:", containerData);
       throw new Error(containerData.error?.message || "텍스트 컨테이너 생성 실패");
     }
     const creationId = containerData.id;
 
-    // 2. 최종 발행
+    // 2. 최종 발행 (threads_publish)
     const publishRes = await fetch(
       `https://graph.threads.net/v1.0/${userId}/threads_publish`,
       {
@@ -63,7 +60,6 @@ export async function POST(req: Request) {
 
     const publishData = await publishRes.json();
     if (!publishRes.ok) {
-      console.error("Meta Publish Error:", publishData);
       throw new Error(publishData.error?.message || "스레드 최종 발행 실패");
     }
 
