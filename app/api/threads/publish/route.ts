@@ -18,6 +18,10 @@ export async function POST(req: Request) {
       cookieStore.get("threads_user_id")?.value || 
       cookieStore.get("user_id")?.value;
 
+    console.log("=== 스레드 발행 요청 디버깅 ===");
+    console.log("User ID:", userId);
+    console.log("Access Token 존재 여부:", !!accessToken);
+
     if (!accessToken || !userId) {
       return NextResponse.json(
         { error: "스레드 인증 정보가 없습니다. 로그인을 다시 진행해 주세요." },
